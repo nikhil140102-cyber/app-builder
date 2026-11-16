@@ -29,7 +29,7 @@ import { ORG_PATTERN } from '@/codegen/helpers';
 import { FieldControl } from './FieldControl';
 import { toRows } from '@/widgets/data';
 
-const GROUP_ORDER: FieldGroup[] = ['Content', 'Style', 'Action', 'Layout'];
+const GROUP_ORDER: FieldGroup[] = ['Content', 'Search & filter', 'Style', 'Action', 'Layout'];
 
 /** Collapsible inspector section; remembers open/closed per section name. */
 function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {

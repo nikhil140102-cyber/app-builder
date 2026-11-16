@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { flutterOnTap, rnOnTap, TAP_DEFAULTS, TAP_FIELDS } from '@/codegen/actions';
 import { b, dartColor as dC, dartString as dS, fieldKey, hex, jsString as J, n, s } from '@/codegen/helpers';
 import { iconDef, iconSvg } from '@/core/icons';
+import { useEditor } from '@/core/store';
 import type { WidgetDefinition } from '@/core/types';
 
 /** Splits a "one per line" list into clean, unique options. */
@@ -90,7 +91,7 @@ export const checkbox: WidgetDefinition = {
       </label>
     );
   },
-  toFlutter: ({ props: p }) => `AbCheckbox(label: ${dS(p.label)}, initial: ${b(p.checked)}, onChanged: (v) => values[${dS(fieldKey(p))}] = v)`,
+  toFlutter: ({ props: p }) => `AbCheckbox(label: ${dS(p.label)}, initial: ${b(p.checked)}, onChanged: (v) => setValue(${dS(fieldKey(p))}, v))`,
   toReactNative: ({ props: p }) => `<AbCheckbox label={${J(p.label)}} initial={${b(p.checked)}} />`,
 };
 
@@ -117,7 +118,7 @@ export const toggle: WidgetDefinition = {
       </div>
     );
   },
-  toFlutter: ({ props: p }) => `AbSwitch(label: ${dS(p.label)}, initial: ${b(p.on)}, onChanged: (v) => values[${dS(fieldKey(p))}] = v)`,
+  toFlutter: ({ props: p }) => `AbSwitch(label: ${dS(p.label)}, initial: ${b(p.on)}, onChanged: (v) => setValue(${dS(fieldKey(p))}, v))`,
   toReactNative: ({ props: p }) => `<AbSwitch label={${J(p.label)}} initial={${b(p.on)}} />`,
 };
 
@@ -141,7 +142,10 @@ export const dropdown: WidgetDefinition = {
       <div className="x-field">
         <label>{s(p.label)}</label>
         {mode === 'preview' ? (
-          <select value={opts.includes(value) ? value : opts[0]} onChange={(e) => setValue(e.target.value)} aria-label={s(p.label)}>
+          <select value={opts.includes(value) ? value : opts[0]} onChange={(e) => {
+              setValue(e.target.value);
+              useEditor.getState().setFormValue(fieldKey(p), e.target.value);
+            }} aria-label={s(p.label)}>
             {opts.map((o) => (
               <option key={o}>{o}</option>
             ))}
@@ -152,7 +156,7 @@ export const dropdown: WidgetDefinition = {
       </div>
     );
   },
-  toFlutter: ({ props: p }) => `AbDropdown(label: ${dS(p.label)}, options: const [${optionList(p.options).map((o) => dS(o)).join(', ')}], onChanged: (v) => values[${dS(fieldKey(p))}] = v)`,
+  toFlutter: ({ props: p }) => `AbDropdown(label: ${dS(p.label)}, options: const [${optionList(p.options).map((o) => dS(o)).join(', ')}], onChanged: (v) => setValue(${dS(fieldKey(p))}, v))`,
   toReactNative: ({ props: p }) => `<AbDropdown label={${J(p.label)}} options={${JSON.stringify(optionList(p.options))}} />`,
 };
 

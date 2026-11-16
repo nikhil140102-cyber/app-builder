@@ -380,11 +380,17 @@ import 'backend.dart';
 
 /// Loads rows once and builds [itemBuilder] for each, with loading, error and empty states.
 class DataList extends StatefulWidget {
-  const DataList({super.key, required this.load, required this.itemBuilder, this.emptyText = 'Nothing here yet.'});
+  const DataList({super.key, required this.load, required this.itemBuilder, this.emptyText = 'Nothing here yet.', this.filter, this.listen});
 
   final Future<List<Map<String, dynamic>>> Function() load;
   final Widget Function(BuildContext context, Map<String, dynamic> item) itemBuilder;
   final String emptyText;
+
+  /// Keeps only rows that pass (search box, dropdown or filter chips on the page).
+  final bool Function(Map<String, dynamic> row)? filter;
+
+  /// Re-filters when this changes (the page's form fields).
+  final Listenable? listen;
 
   @override
   State<DataList> createState() => _DataListState();
@@ -409,18 +415,41 @@ class _DataListState extends State<DataList> {
             ],
           );
         }
-        final rows = snap.data ?? const <Map<String, dynamic>>[];
-        if (rows.isEmpty) {
+        final all = snap.data ?? const <Map<String, dynamic>>[];
+        if (all.isEmpty) {
           return Padding(padding: const EdgeInsets.all(16), child: Text(widget.emptyText, textAlign: TextAlign.center));
         }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: 12,
-          children: [for (final row in rows) widget.itemBuilder(context, row)],
-        );
+        Widget list(BuildContext context) {
+          final rows = widget.filter == null ? all : all.where(widget.filter!).toList();
+          if (rows.isEmpty) {
+            return const Padding(padding: EdgeInsets.all(16), child: Text('No matches. Try another search or filter.', textAlign: TextAlign.center));
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 12,
+            children: [for (final row in rows) widget.itemBuilder(context, row)],
+          );
+        }
+
+        final listen = widget.listen;
+        return listen == null ? list(context) : ListenableBuilder(listenable: listen, builder: (context, _) => list(context));
       },
     );
   }
+}
+
+/// True if [row] matches every search text / filter value in [queries].
+/// Looks in the row fields named in [keys] (all fields when empty).
+/// Empty values, and values starting with "All" (e.g. "All categories"), match everything.
+bool rowMatches(Map<String, dynamic> row, List<String> queries, List<String> keys) {
+  final parts = keys.isEmpty ? row.values.map((v) => v?.toString() ?? '') : keys.map((k) => fill(row, '{{\$k}}'));
+  final haystack = parts.join(' ').toLowerCase();
+  for (final q in queries) {
+    final t = q.trim().toLowerCase();
+    if (t.isEmpty || t == 'all' || t.startsWith('all ')) continue;
+    if (!haystack.contains(t)) return false;
+  }
+  return true;
 }
 `;
 
@@ -434,13 +463,37 @@ import 'backend.dart';
 mixin PageActions<T extends StatefulWidget> on State<T> {
   final Map<String, TextEditingController> _fields = {};
 
-  /// Values from checkboxes, switches and dropdowns, by field name.
+  /// Values from checkboxes, switches, dropdowns and filter chips, by field name.
   final Map<String, dynamic> values = {};
+
+  /// Ticks whenever a field changes, so Data lists can re-filter as you type.
+  final ValueNotifier<int> changes = ValueNotifier(0);
 
   bool busy = false;
 
+  void _changed() => Future.microtask(() {
+        if (mounted) changes.value++;
+      });
+
   /// Controller for the text field saved as [key].
-  TextEditingController field(String key) => _fields.putIfAbsent(key, TextEditingController.new);
+  TextEditingController field(String key) => _fields.putIfAbsent(key, () => TextEditingController()..addListener(_changed));
+
+  /// Sets a dropdown / switch / filter value and updates lists that filter by it.
+  void setValue(String key, dynamic value) {
+    values[key] = value;
+    _changed();
+  }
+
+  /// The current value of the field saved as [key] (text box, dropdown or filter chip).
+  String value(String key) => _fields[key]?.text.trim() ?? values[key]?.toString() ?? '';
+
+  /// True when the filter [key] is set to [option] (an empty / "All…" option is on when nothing is chosen).
+  bool isFilterOn(String key, String option) {
+    bool isAll(String v) => v.isEmpty || v == 'all' || v.startsWith('all ');
+    final current = value(key).trim().toLowerCase();
+    final wanted = option.trim().toLowerCase();
+    return isAll(wanted) ? isAll(current) : current == wanted;
+  }
 
   /// Text typed into the field saved as [key].
   String text(String key) => _fields[key]?.text.trim() ?? '';
@@ -504,6 +557,7 @@ mixin PageActions<T extends StatefulWidget> on State<T> {
 
   @override
   void dispose() {
+    changes.dispose();
     for (final c in _fields.values) {
       c.dispose();
     }

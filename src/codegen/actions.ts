@@ -5,13 +5,15 @@ import { dartString as dS, jsString as J, s } from './helpers';
  * What happens when a button or icon button is tapped.
  * Older projects only stored `action` (a page id); they read as "page".
  */
-export type TapKind = 'none' | 'page' | 'back' | 'link' | 'call' | 'whatsapp' | 'message' | 'signIn' | 'signUp' | 'signOut' | 'save' | 'sendCode' | 'verifyCode';
+export type TapKind = 'none' | 'page' | 'back' | 'link' | 'call' | 'whatsapp' | 'message' | 'signIn' | 'signUp' | 'signOut' | 'save' | 'sendCode' | 'verifyCode' | 'filter';
 
 /** Taps that use the app's backend and the form values on the page. */
 const BACKEND_TAPS: TapKind[] = ['signIn', 'signUp', 'signOut', 'save', 'sendCode', 'verifyCode'];
 const OTP_TAPS: TapKind[] = ['sendCode', 'verifyCode'];
 /** Widgets that have a "When tapped" action. */
 export const TAP_WIDGETS = new Set(['button', 'iconbutton', 'chip']);
+/** Taps that need the page's form state (filters). */
+export const usesPageState = (p: Props) => tapKind(p) === 'filter';
 export const usesBackend = (p: Props) => BACKEND_TAPS.includes(tapKind(p));
 
 export function tapKind(p: Props): TapKind {
@@ -20,7 +22,7 @@ export function tapKind(p: Props): TapKind {
   return s(p.action) ? 'page' : 'none';
 }
 
-export const TAP_DEFAULTS: Props = { via: 'email', tap: 'none', action: '', after: '', url: 'https://', phone: '', message: 'Done!', saveTo: 'table', table: '', api: '', withItem: false };
+export const TAP_DEFAULTS: Props = { via: 'email', tap: 'none', action: '', after: '', url: 'https://', phone: '', message: 'Done!', saveTo: 'table', table: '', api: '', withItem: false, filterField: 'category', filterValue: '' };
 
 export const TAP_FIELDS: FieldDef[] = [
   {
@@ -28,11 +30,12 @@ export const TAP_FIELDS: FieldDef[] = [
     label: 'When tapped',
     kind: 'select',
     group: 'Action',
-    options: ['none', 'page', 'back', 'link', 'call', 'whatsapp', 'message', 'signIn', 'signUp', 'signOut', 'save', 'sendCode', 'verifyCode'],
+    options: ['none', 'page', 'back', 'filter', 'link', 'call', 'whatsapp', 'message', 'signIn', 'signUp', 'signOut', 'save', 'sendCode', 'verifyCode'],
     optionLabels: [
       'Do nothing',
       'Go to a page',
       'Go back',
+      'Filter a list on this page (category tabs)',
       'Open a website',
       'Call a number',
       'Open WhatsApp chat',
@@ -56,6 +59,22 @@ export const TAP_FIELDS: FieldDef[] = [
     help: 'The code box must be saved as "code".',
   },
   { key: 'action', label: 'Page', kind: 'page', group: 'Action', showIf: (p) => tapKind(p) === 'page' },
+  {
+    key: 'filterField',
+    label: 'Filter name',
+    kind: 'text',
+    group: 'Action',
+    showIf: (p) => tapKind(p) === 'filter',
+    help: 'Must also be in the Data list\'s "Filter by", e.g. category.',
+  },
+  {
+    key: 'filterValue',
+    label: 'Show rows containing',
+    kind: 'text',
+    group: 'Action',
+    showIf: (p) => tapKind(p) === 'filter',
+    help: 'e.g. beauty. Leave empty (or write "All") to show everything.',
+  },
   {
     key: 'saveTo',
     label: 'Save to',
@@ -102,6 +121,8 @@ export function flutterOnTap(p: Props, ctx: CodegenContext): string {
     }
     case 'back':
       return '() => Navigator.maybePop(context)';
+    case 'filter':
+      return `() => setValue(${dS(s(p.filterField).trim() || 'filter')}, ${dS(p.filterValue)})`;
     case 'link':
       return `() => launchUrl(Uri.parse(${dS(p.url)}), mode: LaunchMode.externalApplication)`;
     case 'call':
@@ -158,6 +179,8 @@ export function rnOnTap(p: Props, ctx: CodegenContext): string {
     }
     case 'back':
       return '() => navigation.canGoBack() && navigation.goBack()';
+    case 'filter':
+      return '() => {}';
     case 'link':
       return `() => Linking.openURL(${J(p.url)})`;
     case 'call':
@@ -179,12 +202,14 @@ export function rnOnTap(p: Props, ctx: CodegenContext): string {
 }
 
 /** Short description for the editor's preview mode. */
-export function previewTap(p: Props): { page?: string; toast?: string; back?: boolean } {
+export function previewTap(p: Props): { page?: string; toast?: string; back?: boolean; filter?: { field: string; value: string } } {
   switch (tapKind(p)) {
     case 'page':
       return { page: s(p.action) };
     case 'back':
       return { back: true };
+    case 'filter':
+      return { filter: { field: s(p.filterField).trim() || 'filter', value: s(p.filterValue) } };
     case 'link':
       return { toast: `Opens ${s(p.url)}` };
     case 'call':

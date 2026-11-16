@@ -5,6 +5,23 @@ import type { AppDoc, Props, WidgetDefinition } from "@/core/types";
 
 type Item = Record<string, unknown>;
 
+/** "search, category" → ["search", "category"] */
+export const splitList = (v: unknown) =>
+  String(v ?? '')
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+/** Same rule as rowMatches() in the exported app: every query must appear in the chosen fields. */
+export function rowMatches(row: Item, queries: string[], keys: string[]): boolean {
+  const parts = keys.length ? keys.map((k) => fillPreview(`{{${k}}}`, row)) : Object.values(row).map((v) => (v == null ? '' : String(v)));
+  const hay = parts.join(' ').toLowerCase();
+  return queries.every((q) => {
+    const t = q.trim().toLowerCase();
+    return !t || t === 'all' || t.startsWith('all ') || hay.includes(t);
+  });
+}
+
 /** Reads "a.b.c" from an object. */
 export function pick(obj: unknown, path: string): unknown {
   return path
@@ -61,16 +78,32 @@ export const dataList: WidgetDefinition = {
   icon: '<rect x="4" y="4" width="16" height="4" rx="1"/><rect x="4" y="10" width="16" height="4" rx="1"/><rect x="4" y="16" width="16" height="4" rx="1"/>',
   container: 'vertical',
   rowFit: 'expanded',
-  defaultProps: { source: 'table', table: 'products', api: '', limit: 20, empty: 'Nothing here yet.' },
+  defaultProps: { source: 'table', table: 'products', api: '', limit: 20, empty: 'Nothing here yet.', filterBy: '', searchIn: '' },
   fields: [
     { key: 'source', label: 'Get rows from', kind: 'select', options: ['table', 'api'], optionLabels: ['A database table / collection', 'An API'] },
     { key: 'table', label: 'Table / collection name', kind: 'text', showIf: (p) => s(p.source) !== 'api', help: 'Set the database under App → Backend.' },
     { key: 'api', label: 'API', kind: 'api', showIf: (p) => s(p.source) === 'api', help: 'Add APIs under App → APIs.' },
     { key: 'limit', label: 'Show at most', kind: 'number', min: 1, max: 200 },
     { key: 'empty', label: 'Text when there are no rows', kind: 'text' },
+    {
+      key: 'filterBy',
+      label: 'Filter by (fields on this page)',
+      kind: 'text',
+      group: 'Search & filter',
+      help: 'The "Save as" name of a search box, dropdown or filter chips on this page, e.g. search. Several: search, category',
+    },
+    {
+      key: 'searchIn',
+      label: 'Look in (row fields)',
+      kind: 'text',
+      group: 'Search & filter',
+      showIf: (p) => !!s(p.filterBy).trim(),
+      help: 'Which fields of each row to search, e.g. strMeal or title, category. Empty = all fields.',
+    },
   ],
   Render: function DataListView({ node, props: p, mode, renderChildren, renderTemplate }) {
     const doc = useEditor((st) => st.doc);
+    const formValues = useEditor((st) => st.formValues);
     const [rows, setRows] = useState<Item[] | null>(null);
     const [note, setNote] = useState('');
     const key = `${s(p.source)}|${s(p.table)}|${s(p.api)}|${n(p.limit)}`;
@@ -106,11 +139,14 @@ export const dataList: WidgetDefinition = {
       );
     }
     if (!rows) return <div className="x-datalist-note">Loading…</div>;
+    const by = splitList(p.filterBy);
+    const shown = rows === SAMPLE || !by.length ? rows : rows.filter((r) => rowMatches(r, by.map((k) => formValues[k] ?? ''), splitList(p.searchIn)));
     return (
       <div className="x-datalist" style={{ gap: 8 }}>
         {note && <div className="x-datalist-note">{note}</div>}
         {rows.length === 0 && <div className="x-datalist-note">{s(p.empty)}</div>}
-        {rows.map((row, i) => (
+        {rows.length > 0 && shown.length === 0 && <div className="x-datalist-note">No matches. Try another search or filter.</div>}
+        {shown.map((row, i) => (
           <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {renderTemplate?.(rows === SAMPLE ? null : row, `${node.id}-${i}`)}
           </div>
@@ -128,9 +164,15 @@ export const dataList: WidgetDefinition = {
     } else {
       load = `() => Backend.list(${dS(s(p.table).trim() || 'items')}, limit: ${limit})`;
     }
+    const by = splitList(p.filterBy);
+    const filter = by.length
+      ? `
+${I}  listen: changes,
+${I}  filter: (row) => rowMatches(row, [${by.map((k) => `value(${dS(k)})`).join(', ')}], const [${splitList(p.searchIn).map((k) => dS(k)).join(', ')}]),`
+      : '';
     return `DataList(
 ${I}  load: ${load},
-${I}  emptyText: ${dS(p.empty)},
+${I}  emptyText: ${dS(p.empty)},${filter}
 ${I}  itemBuilder: (context, item) => Column(
 ${I}    crossAxisAlignment: CrossAxisAlignment.stretch,
 ${I}    spacing: 8,

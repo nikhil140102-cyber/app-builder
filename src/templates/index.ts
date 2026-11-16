@@ -116,34 +116,45 @@ const login: Template = {
 const shopTabs: Template = {
   id: 'shop-tabs',
   name: 'Shop with tabs',
-  description: 'Bottom navigation, icons, settings and contact buttons (4 pages).',
+  description: 'Products from a live demo API, working search and category tabs, bottom navigation (4 pages).',
   build: (name) => {
     const home = newId('p'), search = newId('p'), profile = newId('p'), product = newId('p');
+    const apiProducts = newId('api');
+
+    /** Product card, repeated for each row. "View details" opens the product page with that product. */
+    const productCard = () =>
+      W('card', { radius: 16 }, [
+        W('image', { src: '{{thumbnail}}', alt: 'Product photo', height: 150, radius: 12 }),
+        W('row', {}, [W('heading', { text: '{{title}}', size: 16, weight: '600' }), W('chip', { text: '${{price}}', bg: '#DDF1EA', fg: '#0F5F4B' })]),
+        W('text', { text: '{{category}} · ★ {{rating}}', size: 13, color: '#6B6B6B' }),
+        W('button', { label: 'View details', tap: 'page', action: product, bg: '#FFFFFF', fg: '#0F7F64' }),
+      ]);
+    const tab = (text: string, value: string) =>
+      W('chip', { text, bg: '#F1F3F1', fg: '#0F5F4B', tap: 'filter', filterField: 'category', filterValue: value });
+
     const doc = shell(name, [
       {
         id: home, name: 'Home', title: name, showAppBar: true, background: '#F7F8F6', requiresLogin: false,
         nodes: [
           W('row', { justify: 'spaceBetween' }, [
             W('heading', { text: 'Namaste, Aditi', size: 22, weight: '800' }),
-            W('iconbutton', { name: 'bell', bg: '#FFFFFF', color: '#1B1B1B', label: 'Notifications', tap: 'message', message: 'No new notifications' }),
+            W('iconbutton', { name: 'search', bg: '#FFFFFF', color: '#1B1B1B', label: 'Search', tap: 'page', action: search }),
           ]),
-          W('image', { alt: 'Festive sale banner', height: 140, radius: 18 }),
-          W('row', { justify: 'start', gap: 6 }, [W('chip', { text: 'New arrivals' }), W('chip', { text: 'Under ₹499', bg: '#DDF1EA', fg: '#0F5F4B' })]),
-          W('card', {}, [
-            W('row', {}, [W('heading', { text: 'Cotton kurta', size: 17, weight: '600' }), W('heading', { text: '₹899', size: 17, weight: '600' })]),
-            W('rating', { value: 4, size: 16 }),
-            W('button', { label: 'View details', tap: 'page', action: product }),
+          W('card', { bg: '#0F7F64', radius: 18 }, [
+            W('heading', { text: 'Festive sale', size: 22, weight: '800', color: '#FFFFFF' }),
+            W('text', { text: 'Up to 40% off on beauty and home.', color: '#DDF1EA' }),
           ]),
-          W('listtile', { title: 'Free delivery', subtitle: 'On orders above ₹999', trailing: '' }),
+          W('heading', { text: 'Popular right now', size: 18 }),
+          W('datalist', { source: 'api', api: apiProducts, limit: 6, empty: 'No products yet.' }, [productCard()]),
         ],
       },
       {
         id: search, name: 'Search', title: 'Search', showAppBar: true, background: '#FFFFFF', requiresLogin: false,
         nodes: [
-          W('input', { label: 'Search products', hint: 'Kurta, saree, shoes…' }),
-          W('dropdown', { label: 'Category', options: 'All\nWomen\nMen\nKids\nHome' }),
-          W('checkbox', { label: 'Only show items in stock', checked: true }),
-          W('button', { label: 'Search', tap: 'message', message: 'Showing 24 results' }),
+          W('input', { label: 'Search products', hint: 'Mascara, perfume, bed…', field: 'search' }),
+          W('row', { justify: 'start', gap: 6 }, [tab('All', ''), tab('Beauty', 'beauty'), tab('Groceries', 'groceries')]),
+          W('row', { justify: 'start', gap: 6 }, [tab('Fragrances', 'fragrances'), tab('Furniture', 'furniture')]),
+          W('datalist', { source: 'api', api: apiProducts, limit: 30, empty: 'No products found.', filterBy: 'search, category', searchIn: 'title, category' }, [productCard()]),
         ],
       },
       {
@@ -156,17 +167,18 @@ const shopTabs: Template = {
         ],
       },
       {
-        id: product, name: 'Product', title: 'Cotton kurta', showAppBar: true, background: '#FFFFFF', requiresLogin: false,
+        id: product, name: 'Product', title: 'Product details', showAppBar: true, background: '#FFFFFF', requiresLogin: false,
         nodes: [
-          W('image', { alt: 'Cotton kurta photo', height: 260, radius: 16 }),
-          W('heading', { text: 'Cotton kurta', size: 22 }),
-          W('text', { text: 'Breathable handloom cotton, made in Jaipur. Machine washable.' }),
-          W('dropdown', { label: 'Size', options: 'S\nM\nL\nXL' }),
-          W('button', { label: 'Add to cart · ₹899', tap: 'message', message: 'Added to cart' }),
+          W('image', { src: '{{thumbnail}}', alt: 'Product photo', height: 260, radius: 16 }),
+          W('row', {}, [W('heading', { text: '{{title}}', size: 22 }), W('chip', { text: '★ {{rating}}', bg: '#FFF4E5', fg: '#B26A00' })]),
+          W('heading', { text: '${{price}}', size: 20, weight: '800', color: '#0F7F64' }),
+          W('text', { text: '{{description}}' }),
+          W('button', { label: 'Add to cart', tap: 'message', message: 'Added to cart' }),
           W('button', { label: 'Back', tap: 'back', bg: '#FFFFFF', fg: '#1B1B1B' }),
         ],
       },
     ]);
+    doc.apis = [{ id: apiProducts, name: 'Products (DummyJSON demo)', url: 'https://dummyjson.com/products?limit=30', listPath: 'products' }];
     doc.nav = {
       enabled: true,
       items: [
@@ -313,7 +325,7 @@ const foodDelivery: Template = {
               W('heading', { text: 'Home · Jaipur', size: 17, weight: '700' }),
               W('iconbutton', { name: 'person', bg: '#F4F4F4', color: '#1B1B1B', label: 'Profile', tap: 'page', action: profile }),
             ]),
-            W('input', { label: 'Search', hint: 'Search “biryani”, “pizza”…', field: 'search' }),
+            W('input', { label: 'Search dishes', hint: 'Try “curry”, “tikka”, “rice”…', field: 'search' }),
             // Tappable chips: each opens a page with its own dish list.
             W('row', { justify: 'start', gap: 6 }, [
               W('chip', { text: 'Pure veg', bg: '#E8F5EC', fg: '#24963F', tap: 'page', action: veg }),
@@ -325,7 +337,7 @@ const foodDelivery: Template = {
               W('text', { text: 'On your first 3 orders. Use code WELCOME50.', size: 13 }),
             ]),
             W('heading', { text: 'Top dishes near you', size: 20, weight: '800' }),
-            W('datalist', { source: 'api', api: apiChicken, limit: 12, empty: 'No dishes right now.' }, [dishCard('North Indian')]),
+            W('datalist', { source: 'api', api: apiChicken, limit: 30, empty: 'No dishes right now.', filterBy: 'search', searchIn: 'strMeal' }, [dishCard('North Indian')]),
           ],
         },
         {

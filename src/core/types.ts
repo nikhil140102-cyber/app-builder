@@ -90,7 +90,7 @@ export interface ProjectSummary {
 export type FieldKind = 'text' | 'textarea' | 'number' | 'color' | 'select' | 'boolean' | 'page' | 'icon' | 'api';
 
 /** Inspector sections. Fields without a group go in "Content". */
-export type FieldGroup = 'Content' | 'Style' | 'Action' | 'Layout';
+export type FieldGroup = 'Content' | 'Search & filter' | 'Style' | 'Action' | 'Layout';
 
 export interface FieldDef {
   key: string;

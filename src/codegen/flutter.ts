@@ -3,7 +3,7 @@ import { iconDef } from '@/core/icons';
 import { walkNodes } from '@/core/tree';
 import type { AppDoc, GeneratedFile, PageDoc, WidgetNode } from '@/core/types';
 import { FORM_HELPER_TYPES } from '@/widgets/controls';
-import { needsLauncher, TAP_WIDGETS, tapKind, usesBackend } from './actions';
+import { needsLauncher, TAP_WIDGETS, tapKind, usesBackend, usesPageState } from './actions';
 import { hasBinding, makeRenderer, navPages } from './common';
 import { backendFiles, backendPackages } from './flutterBackend';
 import { flutterWorkflow } from './workflow';
@@ -30,6 +30,9 @@ export function generateFlutter(doc: AppDoc): GeneratedFile[] {
       if (isTap(nd) && needsLauncher(nd.props)) u.launcher = true;
       if (FORM_HELPER_TYPES.has(nd.type)) u.forms = true;
       if (nd.type === 'input') u.inputs = true;
+      // Search / filter needs the page's field state (value(), setValue(), changes).
+      if (isTap(nd) && usesPageState(nd.props)) u.inputs = true;
+      if (nd.type === 'datalist' && String(nd.props.filterBy ?? '').trim()) u.inputs = true;
       if (isTap(nd) && usesBackend(nd.props)) {
         u.actions = true;
         const saveToApi = tapKind(nd.props) === 'save' && String(nd.props.saveTo) === 'api';

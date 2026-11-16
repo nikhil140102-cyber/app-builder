@@ -1,4 +1,5 @@
 import { dartString as dS, fieldKey, jsString as J, s } from '@/codegen/helpers';
+import { useEditor } from '@/core/store';
 import type { WidgetDefinition } from '@/core/types';
 
 const FLUTTER_KEYBOARD: Record<string, string> = { email: 'TextInputType.emailAddress', number: 'TextInputType.number', phone: 'TextInputType.phone' };
@@ -58,7 +59,12 @@ export const textField: WidgetDefinition = {
     <div className="x-field">
       <label>{s(p.label)}</label>
       {mode === 'preview' ? (
-        <input type={p.obscure === true ? 'password' : 'text'} placeholder={s(p.hint)} aria-label={s(p.label)} />
+        <input
+          type={p.obscure === true ? 'password' : 'text'}
+          placeholder={s(p.hint)}
+          aria-label={s(p.label)}
+          onChange={(e) => useEditor.getState().setFormValue(fieldKey(p), e.target.value)}
+        />
       ) : (
         <div>{s(p.hint)}</div>
       )}

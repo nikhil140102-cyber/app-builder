@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { b, dartColor as dC, dartString as dS, hex, jsString as J, n, s } from '@/codegen/helpers';
 import { flutterOnTap, rnOnTap, TAP_DEFAULTS, TAP_FIELDS, tapKind } from '@/codegen/actions';
+import { useEditor } from '@/core/store';
 import type { WidgetDefinition } from '@/core/types';
 
 const ALIGN = ['left', 'center', 'right'];
@@ -124,6 +125,14 @@ export const image: WidgetDefinition = {
       : `<View accessibilityLabel={${J(p.alt)}} style={{ height: ${n(p.height)}, borderRadius: ${n(p.radius)}, backgroundColor: '#DCE6DF' }} />`,
 };
 
+/** Same rule as isFilterOn() in the exported app. */
+function filterOn(current: string, option: string) {
+  const isAll = (v: string) => !v || v === 'all' || v.startsWith('all ');
+  const c = current.trim().toLowerCase();
+  const w = option.trim().toLowerCase();
+  return isAll(w) ? isAll(c) : c === w;
+}
+
 export const chip: WidgetDefinition = {
   type: 'chip',
   label: 'Chip',
@@ -136,24 +145,36 @@ export const chip: WidgetDefinition = {
     { key: 'fg', label: 'Text colour', kind: 'color', group: 'Style' },
     ...TAP_FIELDS,
   ],
-  Render: ({ props: p, mode, runTap }) => {
+  Render: function ChipView({ props: p, mode, runTap }) {
     const tappable = tapKind(p) !== 'none';
+    const isFilter = tapKind(p) === 'filter';
+    const current = useEditor((st) => st.formValues[s(p.filterField).trim() || 'filter'] ?? '');
+    const on = isFilter && filterOn(current, s(p.filterValue));
     return (
       <span
         className="x-chip"
         role={mode === 'preview' && tappable ? 'button' : undefined}
-        style={{ background: hex(p.bg), color: hex(p.fg), cursor: mode === 'preview' && tappable ? 'pointer' : undefined }}
+        aria-pressed={isFilter ? on : undefined}
+        style={{
+          background: hex(p.bg),
+          color: hex(p.fg),
+          cursor: mode === 'preview' && tappable ? 'pointer' : undefined,
+          boxShadow: on ? `inset 0 0 0 2px ${hex(p.fg)}` : undefined,
+        }}
         onClick={() => {
           if (mode === 'preview' && tappable) runTap(p);
         }}
       >
+        {on ? '✓ ' : ''}
         {s(p.text)}
       </span>
     );
   },
   // A chip with "When tapped" set becomes a tappable ActionChip (filters, shortcuts).
   toFlutter: ({ props: p }, ctx) =>
-    tapKind(p) === 'none'
+    tapKind(p) === 'filter'
+      ? `ListenableBuilder(listenable: changes, builder: (context, _) => ChoiceChip(selected: isFilterOn(${dS(s(p.filterField).trim() || 'filter')}, ${dS(p.filterValue)}), onSelected: (_) => setValue(${dS(s(p.filterField).trim() || 'filter')}, ${dS(p.filterValue)}), label: Text(${ctx.dartText(p.text)}, style: TextStyle(color: ${dC(p.fg)})), backgroundColor: ${dC(p.bg)}, selectedColor: ${dC(p.bg)}, side: BorderSide(color: isFilterOn(${dS(s(p.filterField).trim() || 'filter')}, ${dS(p.filterValue)}) ? ${dC(p.fg)} : Colors.transparent, width: 1.5)))`
+      : tapKind(p) === 'none'
       ? `Chip(label: Text(${ctx.dartText(p.text)}, style: TextStyle(color: ${dC(p.fg)})), backgroundColor: ${dC(p.bg)}, side: BorderSide.none)`
       : `ActionChip(onPressed: ${flutterOnTap(p, ctx)}, label: Text(${ctx.dartText(p.text)}, style: TextStyle(color: ${dC(p.fg)})), backgroundColor: ${dC(p.bg)}, side: BorderSide.none)`,
   toReactNative: ({ props: p }, ctx) => {

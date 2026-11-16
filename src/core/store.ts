@@ -16,6 +16,9 @@ interface EditorState {
   /** In Preview: the Data-list row the current page was opened with (a tapped dish…). */
   pageItem: Item | null;
   itemHistory: (Item | null)[];
+  /** In Preview: what is typed / chosen in fields on the current page, by field name (for search & filters). */
+  formValues: Record<string, string>;
+  setFormValue: (key: string, value: string) => void;
   /** Short message shown over the phone (Preview actions, copy/paste feedback). */
   toast: string | null;
   device: DeviceId;
@@ -70,6 +73,8 @@ export const useEditor = create<EditorState>((set, get) => ({
   history: [],
   pageItem: null,
   itemHistory: [],
+  formValues: {},
+  setFormValue: (key, value) => set((st) => ({ formValues: { ...st.formValues, [key]: value } })),
   toast: null,
   device: 'phone',
   zoom: 1,
@@ -79,7 +84,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   lastAt: 0,
 
   load: (doc) =>
-    set({ doc, pageId: doc.pages[0]?.id ?? null, selectedId: null, mode: 'edit', history: [], pageItem: null, itemHistory: [], past: [], future: [], lastKey: null }),
+    set({ doc, pageId: doc.pages[0]?.id ?? null, selectedId: null, mode: 'edit', history: [], pageItem: null, itemHistory: [], formValues: {}, past: [], future: [], lastKey: null }),
 
   update: (recipe, opts) => {
     const { doc, past, lastKey, lastAt, pageId, selectedId } = get();
@@ -114,14 +119,15 @@ export const useEditor = create<EditorState>((set, get) => ({
   },
 
   select: (id) => set({ selectedId: id }),
-  setPage: (id) => set({ pageId: id, selectedId: null }),
-  setMode: (mode) => set({ mode, selectedId: null, history: [], pageItem: null, itemHistory: [] }),
+  setPage: (id) => set({ pageId: id, selectedId: null, formValues: {} }),
+  setMode: (mode) => set({ mode, selectedId: null, history: [], pageItem: null, itemHistory: [], formValues: {} }),
   goTo: (id, item) => {
     const { pageId, history, doc, pageItem, itemHistory } = get();
     if (!doc?.pages.some((p) => p.id === id)) return;
     set({
       pageId: id,
       selectedId: null,
+      formValues: {},
       history: pageId ? [...history, pageId].slice(-50) : history,
       itemHistory: pageId ? [...itemHistory, pageItem].slice(-50) : itemHistory,
       // A tapped row goes along; otherwise the current page's row is passed on (like the exported app).
@@ -137,6 +143,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       history: history.slice(0, -1),
       pageItem: itemHistory[itemHistory.length - 1] ?? null,
       itemHistory: itemHistory.slice(0, -1),
+      formValues: {},
       selectedId: null,
     });
   },

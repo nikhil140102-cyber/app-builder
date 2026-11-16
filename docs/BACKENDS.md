@@ -39,6 +39,12 @@ Put a **Button** inside a Data list's card and set *When tapped → Go to a page
 On a form page opened this way, tick **Also save the item this page shows** on the *Save the form* button to send the row along as `item` (for a Supabase table, add a `jsonb` column named `item`).
 The **Food delivery** template shows the whole flow: dishes from TheMealDB (free, no key) → dish page → checkout → order placed. Its orders go to a demo API that accepts but does not keep them; point the *Orders* API at your own server, or switch the button to *A database table* (`orders`).
 
+### Search box and category tabs
+1. Add a **Text field** (or Dropdown) to the page with the Data list and set its *Save as* to `search`.
+2. Select the **Data list** → *Search & filter* → **Filter by**: `search`, and **Look in**: the row fields to search (e.g. `strMeal`, or `title, category`). The list now filters as you type, in Preview and in the app.
+3. For category tabs, add **Chips** with *When tapped → Filter a list on this page*, *Filter name* `category` and *Show rows containing* `beauty` (leave empty for an "All" tab). Add `category` to the list's *Filter by* too: `search, category`. The tapped tab shows a ✓.
+The **Shop with tabs** template shows this on its Search page.
+
 ## 3. Prepare the backend
 
 ### Supabase

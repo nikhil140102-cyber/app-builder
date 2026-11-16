@@ -62,6 +62,7 @@ function runTap(p: Props, item?: Record<string, unknown> | null) {
   const st = useEditor.getState();
   const r = previewTap(p);
   if (r.toast) st.showToast(r.toast);
+  if (r.filter) st.setFormValue(r.filter.field, r.filter.value);
   // Only "Go to a page" carries the tapped row along, like the exported app.
   if (r.page) st.goTo(r.page, item && str(p.tap || (p.action ? 'page' : '')) === 'page' ? item : undefined);
   else if (r.back) st.goBack();

@@ -3,6 +3,7 @@ import { walkNodes } from '@/core/tree';
 import type { AppDoc } from '@/core/types';
 import { TAP_WIDGETS, tapKind, usesBackend } from './actions';
 import { fieldKey } from './helpers';
+import { splitList } from '@/widgets/data';
 import { ORG_PATTERN, pascal } from './helpers';
 
 export interface Check {
@@ -100,6 +101,22 @@ export function checkProject(doc: AppDoc): Check[] {
       }
     });
     if (page.requiresLogin) needsBackend = true;
+
+    // Search & filter: lists and the boxes / chips that drive them must use the same names.
+    const filterTaps = new Set<string>();
+    const listFilters = new Set<string>();
+    walkNodes(page.nodes, (n) => {
+      if (TAP_WIDGETS.has(n.type) && tapKind(n.props) === 'filter') filterTaps.add(String(n.props.filterField ?? '').trim() || 'filter');
+      if (n.type === 'datalist') splitList(n.props.filterBy).forEach((k) => listFilters.add(k));
+    });
+    for (const k of listFilters) {
+      if (!keys.has(k) && !filterTaps.has(k))
+        out.push({ level: 'warning', message: `A Data list on "${page.name}" filters by "${k}", but no search box, dropdown or filter chip on that page is saved as "${k}".`, pageId: page.id });
+    }
+    for (const k of filterTaps) {
+      if (!listFilters.has(k))
+        out.push({ level: 'warning', message: `A filter chip on "${page.name}" sets "${k}", but no Data list on that page has "${k}" in its "Filter by".`, pageId: page.id });
+    }
   }
   if (needsBackend && b.provider === 'none')
     out.push({ level: 'error', message: 'This app uses sign-in or a database, but no backend is chosen. Right panel → App → Backend → choose Supabase or Firebase.' });
