@@ -99,7 +99,7 @@ export const image: WidgetDefinition = {
   ],
   Render: ({ props: p }) => (
     <div className="x-img" style={{ height: n(p.height), borderRadius: n(p.radius) }}>
-      {s(p.src) ? (
+      {s(p.src) && !s(p.src).includes('{{') ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={s(p.src)} alt={s(p.alt)} />
       ) : (
@@ -109,7 +109,7 @@ export const image: WidgetDefinition = {
             <circle cx="9" cy="10" r="2" />
             <path d="M21 16l-5-5-9 8" />
           </svg>
-          <span>{s(p.alt) || 'Image'}</span>
+          <span>{s(p.src).includes('{{') ? `Photo from data: ${s(p.src)}` : s(p.alt) || 'Image'}</span>
         </>
       )}
     </div>

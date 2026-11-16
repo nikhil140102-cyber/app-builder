@@ -34,6 +34,11 @@ The fastest start: create an app from the **Login + database** template.
 
 **Preview** shows real rows when the browser can read the source (APIs that allow it, and Supabase tables whose rules allow reading); otherwise it shows the template with placeholders.
 
+### Detail pages (tap a row to open it)
+Put a **Button** inside a Data list's card and set *When tapped → Go to a page*. The tapped row travels to that page, so `{{field}}` on the detail page shows that row (for example `{{strMeal}}` and `{{strMealThumb}}` for a dish). It also travels one step further when that page opens another page (dish → checkout).
+On a form page opened this way, tick **Also save the item this page shows** on the *Save the form* button to send the row along as `item` (for a Supabase table, add a `jsonb` column named `item`).
+The **Food delivery** template shows the whole flow: dishes from TheMealDB (free, no key) → dish page → checkout → order placed. Its orders go to a demo API that accepts but does not keep them; point the *Orders* API at your own server, or switch the button to *A database table* (`orders`).
+
 ## 3. Prepare the backend
 
 ### Supabase

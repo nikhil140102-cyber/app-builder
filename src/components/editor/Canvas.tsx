@@ -31,7 +31,7 @@ function TemplateNode({ node, item, inRow }: { node: WidgetNode; item: Record<st
         props={props}
         mode="preview"
         navigate={(id) => useEditor.getState().goTo(id)}
-        runTap={(p) => runTap(fillProps(p, item))}
+        runTap={(p) => runTap(fillProps(p, item), item)}
         renderChildren={
           def.container
             ? (style) => (
@@ -57,11 +57,13 @@ function TemplateNode({ node, item, inRow }: { node: WidgetNode; item: Record<st
 
 const ALIGN_CSS: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end' };
 
-function runTap(p: Props) {
+/** Preview of a tap. `item` is the Data-list row the widget belongs to, if any. */
+function runTap(p: Props, item?: Record<string, unknown> | null) {
   const st = useEditor.getState();
   const r = previewTap(p);
   if (r.toast) st.showToast(r.toast);
-  if (r.page) st.goTo(r.page);
+  // Only "Go to a page" carries the tapped row along, like the exported app.
+  if (r.page) st.goTo(r.page, item && str(p.tap || (p.action ? 'page' : '')) === 'page' ? item : undefined);
   else if (r.back) st.goBack();
 }
 
@@ -140,6 +142,7 @@ function NodeView({ node, inRow }: { node: WidgetNode; inRow: boolean }) {
   const def = getWidget(node.type);
   const selected = useEditor((s) => s.selectedId === node.id);
   const mode = useEditor((s) => s.mode);
+  const pageItem = useEditor((s) => s.pageItem);
   const dragging = useDnd((s) => s.item?.kind === 'move' && s.item.id === node.id);
   if (!def) return <div className="unknown" data-node-id={node.id}>Unknown widget “{node.type}”. Install the plugin that provides it.</div>;
   const Render = def.Render;
@@ -173,7 +176,7 @@ function NodeView({ node, inRow }: { node: WidgetNode; inRow: boolean }) {
     >
       <Render
         node={node}
-        props={mode === 'preview' ? fillProps(node.props, null) : node.props}
+        props={mode === 'preview' ? fillProps(node.props, pageItem) : node.props}
         mode={mode}
         navigate={(id) => useEditor.getState().goTo(id)}
         runTap={runTap}
@@ -206,7 +209,7 @@ function BottomBar({ pageId }: { pageId: string }) {
           onClick={(e) => {
             e.stopPropagation();
             // Switching tabs is not a "go back" step, just like on a real phone.
-            useEditor.setState({ history: [] });
+            useEditor.setState({ history: [], itemHistory: [], pageItem: null });
             useEditor.getState().setPage(it.pageId);
           }}
         >

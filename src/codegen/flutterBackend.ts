@@ -7,8 +7,15 @@ import { dartString } from './helpers';
  * class); the others only when the app uses them.
  */
 
-const FILL_AND_GUARD = `/// Fills {{field}} placeholders from a data-list row, and {{user.email}}
-/// from the signed-in user.
+const FILL_AND_GUARD = `/// The data-list row this page was opened with (a tapped dish, product…),
+/// or null when the page was opened normally.
+Map<String, dynamic>? pageItem(BuildContext context) {
+  final args = ModalRoute.of(context)?.settings.arguments;
+  return args is Map ? Map<String, dynamic>.from(args) : null;
+}
+
+/// Fills {{field}} placeholders from a data-list row (or the row this page
+/// was opened with), and {{user.email}} from the signed-in user.
 String fill(Map<String, dynamic>? item, String template) {
   return template.replaceAllMapped(RegExp(r'\\{\\{\\s*([\\w.]+)\\s*\\}\\}'), (m) {
     final key = m[1]!;

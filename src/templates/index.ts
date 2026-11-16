@@ -276,4 +276,154 @@ const otpLogin: Template = {
   },
 };
 
-export const templates: Template[] = [blank, cafeOrdering, shopTabs, membersApp, otpLogin, login];
+/** Zomato-style food delivery: real dishes from TheMealDB (free, no key), checkout that posts the order. */
+const foodDelivery: Template = {
+  id: 'food',
+  name: 'Food delivery',
+  description: 'Zomato-style: dishes from a live demo API, dish page, checkout and order placed (7 pages).',
+  build: (name) => {
+    const home = newId('p'), veg = newId('p'), explore = newId('p'), profile = newId('p');
+    const dish = newId('p'), checkout = newId('p'), placed = newId('p');
+    const RED = '#E23744';
+    const apiChicken = newId('api'), apiVeg = newId('api'), apiCats = newId('api'), apiOrders = newId('api');
+    const MEALS = 'https://www.themealdb.com/api/json/v1/1';
+
+    /** One dish card, repeated for every row of a Data list. Tapping it opens the dish page with that dish. */
+    const dishCard = (tag: string) =>
+      W('card', { padding: 0, radius: 18 }, [
+        W('image', { src: '{{strMealThumb}}', alt: 'Dish photo', height: 170, radius: 18 }),
+        W('row', { _pad: 12 }, [
+          W('heading', { text: '{{strMeal}}', size: 17, weight: '700' }),
+          W('chip', { text: '4.3 ★', bg: '#24963F', fg: '#FFFFFF' }),
+        ]),
+        W('text', { text: `${tag} · ₹249 for one · 30–35 min`, size: 13, color: '#6B6B6B', _pad: 12 }),
+        W('button', { label: 'View dish', tap: 'page', action: dish, bg: '#FFFFFF', fg: RED, _pad: 8 }),
+      ]);
+
+    const doc = shell(
+      name,
+      [
+        {
+          id: home, name: 'Home', title: name, showAppBar: false, background: '#FFFFFF', requiresLogin: false,
+          nodes: [
+            W('spacer', { height: 8 }),
+            W('row', {}, [
+              W('icon', { name: 'location', size: 24, color: RED }),
+              W('heading', { text: 'Home · Jaipur', size: 17, weight: '700' }),
+              W('iconbutton', { name: 'person', bg: '#F4F4F4', color: '#1B1B1B', label: 'Profile', tap: 'page', action: profile }),
+            ]),
+            W('input', { label: 'Search', hint: 'Search “biryani”, “pizza”…', field: 'search' }),
+            W('row', { justify: 'start', gap: 6 }, [
+              W('chip', { text: 'Pure veg', bg: '#E8F5EC', fg: '#24963F' }),
+              W('chip', { text: 'Under 30 min', bg: '#F4F4F4', fg: '#1B1B1B' }),
+              W('chip', { text: 'Rating 4.0+', bg: '#F4F4F4', fg: '#1B1B1B' }),
+            ]),
+            W('card', { bg: '#FFF1F2', radius: 18 }, [
+              W('heading', { text: '50% OFF up to ₹100', size: 20, weight: '800', color: RED }),
+              W('text', { text: 'On your first 3 orders. Use code WELCOME50.', size: 13 }),
+            ]),
+            W('heading', { text: 'Top dishes near you', size: 20, weight: '800' }),
+            W('datalist', { source: 'api', api: apiChicken, limit: 12, empty: 'No dishes right now.' }, [dishCard('North Indian')]),
+          ],
+        },
+        {
+          id: veg, name: 'Veg', title: 'Pure veg', showAppBar: true, background: '#FFFFFF', requiresLogin: false,
+          nodes: [
+            W('text', { text: '100% vegetarian kitchens near you.', color: '#24963F' }),
+            W('datalist', { source: 'api', api: apiVeg, limit: 12, empty: 'No veg dishes right now.' }, [dishCard('Pure veg')]),
+          ],
+        },
+        {
+          id: explore, name: 'Explore', title: 'Explore cuisines', showAppBar: true, background: '#F7F7F7', requiresLogin: false,
+          nodes: [
+            W('text', { text: 'What’s on your mind?' }),
+            W('datalist', { source: 'api', api: apiCats, limit: 10, empty: 'No cuisines found.' }, [
+              W('card', { radius: 18 }, [
+                W('image', { src: '{{strCategoryThumb}}', alt: 'Cuisine photo', height: 120, radius: 14 }),
+                W('heading', { text: '{{strCategory}}', size: 17, weight: '700' }),
+              ]),
+            ]),
+          ],
+        },
+        {
+          id: profile, name: 'Profile', title: 'Profile', showAppBar: true, background: '#F7F7F7', requiresLogin: false,
+          nodes: [
+            W('row', { justify: 'start', gap: 12 }, [W('icon', { name: 'person', size: 44, color: RED }), W('heading', { text: 'Your account', size: 20 })]),
+            W('card', {}, [
+              W('listtile', { title: 'Your orders', subtitle: 'Track and reorder', trailing: '›' }),
+              W('listtile', { title: 'Saved addresses', subtitle: 'Home, Work', trailing: '›' }),
+              W('listtile', { title: 'Payment methods', subtitle: 'UPI, cards, cash', trailing: '›' }),
+            ]),
+            W('card', {}, [W('switch', { label: 'Order updates', on: true }), W('switch', { label: 'Offers and deals', on: false })]),
+            W('button', { label: 'Chat with support on WhatsApp', tap: 'whatsapp', phone: '+919876543210', bg: '#1F9D55' }),
+          ],
+        },
+        {
+          id: dish, name: 'Dish', title: '', showAppBar: true, background: '#FFFFFF', requiresLogin: false,
+          nodes: [
+            W('image', { src: '{{strMealThumb}}', alt: 'Dish photo', height: 260, radius: 20 }),
+            W('row', {}, [W('heading', { text: '{{strMeal}}', size: 24, weight: '800' }), W('chip', { text: '4.3 ★', bg: '#24963F', fg: '#FFFFFF' })]),
+            W('rating', { value: 4, size: 18 }),
+            W('text', { text: 'Freshly cooked when you order and packed hot. Serves 1. Ask for less spicy in the cooking note.', color: '#4A4A4A' }),
+            W('row', { justify: 'start', gap: 6 }, [
+              W('chip', { text: 'Bestseller', bg: '#FFF4E5', fg: '#B26A00' }),
+              W('chip', { text: '30–35 min', bg: '#F4F4F4', fg: '#1B1B1B' }),
+            ]),
+            W('divider'),
+            W('row', {}, [W('heading', { text: '₹249', size: 22, weight: '800' }), W('text', { text: 'Inclusive of all taxes', size: 12, color: '#6B6B6B' })]),
+            W('button', { label: 'Add to order · ₹249', tap: 'page', action: checkout, bg: RED }),
+          ],
+        },
+        {
+          id: checkout, name: 'Checkout', title: 'Checkout', showAppBar: true, background: '#F7F7F7', requiresLogin: false,
+          nodes: [
+            W('card', {}, [
+              W('row', {}, [W('heading', { text: '{{strMeal}}', size: 17, weight: '700' }), W('heading', { text: '₹249', size: 17 })]),
+              W('listtile', { title: 'Delivery fee', subtitle: 'Free above ₹499', trailing: '₹30' }),
+              W('listtile', { title: 'Taxes and charges', subtitle: '', trailing: '₹12' }),
+              W('divider'),
+              W('row', {}, [W('heading', { text: 'To pay', size: 18, weight: '800' }), W('heading', { text: '₹291', size: 18, weight: '800' })]),
+            ]),
+            W('heading', { text: 'Delivery details', size: 18, weight: '700' }),
+            W('input', { label: 'Your name', hint: 'Aditi Sharma', field: 'name' }),
+            W('input', { label: 'Phone', hint: '98765 43210', keyboard: 'phone', field: 'phone' }),
+            W('input', { label: 'Address', hint: 'House no., street, area', field: 'address' }),
+            W('dropdown', { label: 'Payment', options: 'Cash on delivery\nUPI on delivery', field: 'payment' }),
+            W('input', { label: 'Cooking note (optional)', hint: 'Less spicy, no onion…', field: 'note' }),
+            W('button', { label: 'Place order · ₹291', tap: 'save', saveTo: 'api', api: apiOrders, withItem: true, message: 'Order placed!', after: placed, bg: RED }),
+          ],
+        },
+        {
+          id: placed, name: 'Order placed', title: '', showAppBar: false, background: '#24963F', requiresLogin: false,
+          nodes: [
+            W('spacer', { height: 110 }),
+            W('icon', { name: 'check', size: 64, color: '#FFFFFF', _align: 'center' }),
+            W('heading', { text: 'Order placed!', size: 30, weight: '800', color: '#FFFFFF', align: 'center' }),
+            W('text', { text: 'Your food is being prepared and will reach you in about 30 minutes.', color: '#E8F5EC', align: 'center' }),
+            W('spacer', { height: 24 }),
+            W('button', { label: 'Back to home', tap: 'page', action: home, bg: '#FFFFFF', fg: '#24963F' }),
+          ],
+        },
+      ],
+      RED,
+    );
+    doc.apis = [
+      { id: apiChicken, name: 'Top dishes (TheMealDB)', url: `${MEALS}/filter.php?c=Chicken`, listPath: 'meals' },
+      { id: apiVeg, name: 'Veg dishes (TheMealDB)', url: `${MEALS}/filter.php?c=Vegetarian`, listPath: 'meals' },
+      { id: apiCats, name: 'Cuisines (TheMealDB)', url: `${MEALS}/categories.php`, listPath: 'categories' },
+      { id: apiOrders, name: 'Orders (demo — replace with your own)', url: 'https://jsonplaceholder.typicode.com/posts', listPath: '' },
+    ];
+    doc.nav = {
+      enabled: true,
+      items: [
+        { pageId: home, label: 'Delivery', icon: 'home' },
+        { pageId: veg, label: 'Veg', icon: 'favorite' },
+        { pageId: explore, label: 'Explore', icon: 'grid' },
+        { pageId: profile, label: 'Profile', icon: 'person' },
+      ],
+    };
+    return doc;
+  },
+};
+
+export const templates: Template[] = [blank, foodDelivery, cafeOrdering, shopTabs, membersApp, otpLogin, login];

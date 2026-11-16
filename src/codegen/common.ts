@@ -64,7 +64,7 @@ export function makeRenderer(doc: AppDoc, target: Target) {
       dartText: (v) => {
         const raw = String(v ?? '');
         if (target !== 'flutter' || !hasBinding(raw)) return dartString(raw);
-        return `fill(${inList ? 'item' : 'null'}, ${dartString(raw)})`;
+        return `fill(${inList ? 'item' : 'pageItem(context)'}, ${dartString(raw)})`;
       },
       routeFor: (id) => names.get(id)?.route ?? null,
       screenFor: (id) => names.get(id)?.screen ?? null,

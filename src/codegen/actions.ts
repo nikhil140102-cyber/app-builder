@@ -18,7 +18,7 @@ export function tapKind(p: Props): TapKind {
   return s(p.action) ? 'page' : 'none';
 }
 
-export const TAP_DEFAULTS: Props = { via: 'email', tap: 'none', action: '', after: '', url: 'https://', phone: '', message: 'Done!', saveTo: 'table', table: '', api: '' };
+export const TAP_DEFAULTS: Props = { via: 'email', tap: 'none', action: '', after: '', url: 'https://', phone: '', message: 'Done!', saveTo: 'table', table: '', api: '', withItem: false };
 
 export const TAP_FIELDS: FieldDef[] = [
   {
@@ -65,6 +65,14 @@ export const TAP_FIELDS: FieldDef[] = [
   },
   { key: 'table', label: 'Table / collection name', kind: 'text', group: 'Action', showIf: (p) => tapKind(p) === 'save' && s(p.saveTo) !== 'api', help: 'Each field name on this page becomes a column.' },
   { key: 'api', label: 'API', kind: 'api', group: 'Action', showIf: (p) => tapKind(p) === 'save' && s(p.saveTo) === 'api' },
+  {
+    key: 'withItem',
+    label: 'Also save the item this page shows',
+    kind: 'boolean',
+    group: 'Action',
+    showIf: (p) => tapKind(p) === 'save',
+    help: 'For pages opened from a Data list (e.g. the dish being ordered). Saved as "item".',
+  },
   { key: 'after', label: 'Then go to (optional)', kind: 'page', group: 'Action', showIf: (p) => BACKEND_TAPS.includes(tapKind(p)) },
   { key: 'url', label: 'Website address', kind: 'text', group: 'Action', showIf: (p) => tapKind(p) === 'link', help: 'Starts with https://' },
   { key: 'phone', label: 'Phone number', kind: 'text', group: 'Action', showIf: (p) => ['call', 'whatsapp'].includes(tapKind(p)), help: 'With country code, e.g. +919876543210' },
@@ -84,7 +92,11 @@ export function flutterOnTap(p: Props, ctx: CodegenContext): string {
   switch (tapKind(p)) {
     case 'page': {
       const route = ctx.routeFor(s(p.action));
-      return route ? `() => Navigator.pushNamed(context, '${route}')` : '() {}';
+      if (!route) return '() {}';
+      // Inside a Data list the tapped row goes along; elsewhere the page's own row is passed on.
+      return ctx.inList
+        ? `() => Navigator.pushNamed(context, '${route}', arguments: item)`
+        : `() => Navigator.pushNamed(context, '${route}', arguments: ModalRoute.of(context)?.settings.arguments)`;
     }
     case 'back':
       return '() => Navigator.maybePop(context)';
@@ -116,13 +128,14 @@ export function flutterOnTap(p: Props, ctx: CodegenContext): string {
     }
     case 'save': {
       const msg = s(p.message).trim() ? `, message: ${dS(p.message)}` : '';
+      const data = p.withItem ? `{...collect(), 'item': pageItem(context)}` : 'collect()';
       if (s(p.saveTo) === 'api') {
         const api = ctx.doc.apis.find((a) => a.id === s(p.api));
         return api
-          ? `() => run(() => Api.post(${dS(api.url)}, collect())${msg}, goTo: ${afterRoute(p, ctx)})`
+          ? `() => run(() => Api.post(${dS(api.url)}, ${data})${msg}, goTo: ${afterRoute(p, ctx)})`
           : `() => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No API chosen for this button.')))`;
       }
-      return `() => run(() => Backend.insert(${dS(s(p.table).trim() || 'items')}, collect())${msg}, goTo: ${afterRoute(p, ctx)})`;
+      return `() => run(() => Backend.insert(${dS(s(p.table).trim() || 'items')}, ${data})${msg}, goTo: ${afterRoute(p, ctx)})`;
     }
     default:
       return '() {}';
