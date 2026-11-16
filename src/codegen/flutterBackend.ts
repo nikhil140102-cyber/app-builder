@@ -70,7 +70,13 @@ class Backend {
 
   static Future<void> init() async {
     try {
-      await Supabase.initialize(url: url, anonKey: key);
+      // Implicit flow: one-time codes typed in the app are checked directly.
+      // (PKCE is only needed for browser redirects, which this app does not use.)
+      await Supabase.initialize(
+        url: url,
+        anonKey: key,
+        authOptions: const FlutterAuthClientOptions(authFlowType: AuthFlowType.implicit),
+      );
     } catch (e) {
       initError = e;
     }
@@ -130,6 +136,7 @@ class Backend {
   }
 
   static Future<void> verifyCode(String code, {String contact = '', bool phone = false}) async {
+    code = code.replaceAll(RegExp(r'[^0-9]'), '');
     final to = contact.isNotEmpty ? contact : _pending;
     final byPhone = contact.isNotEmpty ? phone : _pendingPhone;
     if (to == null || to.isEmpty) throw Exception('Tap "Send code" first.');
@@ -152,7 +159,19 @@ class Backend {
 }
 
 String friendlyError(Object e) {
-  if (e is AuthException) return e.message;
+  if (e is AuthException) {
+    final m = e.message;
+    if (RegExp('error sending', caseSensitive: false).hasMatch(m)) {
+      return 'Supabase could not send the email. Check Authentication → Emails → SMTP settings (host, port 587, Gmail app password).';
+    }
+    if (RegExp('expired or is invalid', caseSensitive: false).hasMatch(m)) {
+      return 'That code is wrong or too old. Use the code from the NEWEST email only (each "Send code" replaces the last one), or tap Send code again.';
+    }
+    if (RegExp('rate limit', caseSensitive: false).hasMatch(m)) {
+      return 'Too many codes were requested. Wait a few minutes and try again.';
+    }
+    return m;
+  }
   if (e is PostgrestException) return e.message;
   return e.toString().replaceFirst('Exception: ', '');
 }
@@ -249,6 +268,7 @@ class Backend {
 
   static Future<void> verifyCode(String code, {String contact = '', bool phone = false}) async {
     _check();
+    code = code.replaceAll(RegExp(r'[^0-9]'), '');
     final id = _verificationId;
     if (id == null) throw Exception('Tap "Send code" first.');
     if (code.length < 6) throw Exception('Enter the 6-digit code from the SMS.');
@@ -397,7 +417,9 @@ class _DataListState extends State<DataList> {
 }
 `;
 
-const PAGE_ACTIONS = `import 'package:flutter/material.dart';
+const PAGE_ACTIONS = `import 'dart:async';
+
+import 'package:flutter/material.dart';
 
 import 'backend.dart';
 
@@ -424,13 +446,26 @@ mixin PageActions<T extends StatefulWidget> on State<T> {
       };
 
   /// Runs [task], shows [message] or the error, then optionally opens [goTo].
+  /// A "Please wait…" note shows at once, and the task gives up after 60 seconds
+  /// so a button never seems to do nothing.
   Future<void> run(Future<void> Function() task, {String? goTo, String? message, bool clear = true}) async {
     if (busy) return;
     setState(() => busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(const SnackBar(
+      content: Row(children: [
+        SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+        SizedBox(width: 12),
+        Text('Please wait…'),
+      ]),
+      duration: Duration(seconds: 60),
+    ));
     try {
-      await task();
+      await task().timeout(const Duration(seconds: 60));
       if (!mounted) return;
-      if (message != null) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      messenger.hideCurrentSnackBar();
+      if (message != null) messenger.showSnackBar(SnackBar(content: Text(message)));
       if (goTo != null) {
         if (clear) {
           Navigator.of(context).pushNamedAndRemoveUntil(goTo, (route) => false);
@@ -439,10 +474,25 @@ mixin PageActions<T extends StatefulWidget> on State<T> {
         }
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      debugPrint('Action failed: $e');
+      if (mounted) {
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(SnackBar(content: Text(_explain(e)), duration: const Duration(seconds: 8)));
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
+  }
+
+  String _explain(Object e) {
+    if (e is TimeoutException) {
+      return 'No answer from the server after 60 seconds. Check the internet connection. For email codes, also check the SMTP settings in your backend.';
+    }
+    final raw = e.toString();
+    if (RegExp(r'SocketException|Failed host lookup|ClientException|Connection (refused|reset|closed)', caseSensitive: false).hasMatch(raw)) {
+      return 'No internet connection. Check that this phone or emulator is online, then try again.';
+    }
+    return friendlyError(e);
   }
 
   @override

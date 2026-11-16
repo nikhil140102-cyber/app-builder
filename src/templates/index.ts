@@ -248,7 +248,7 @@ const otpLogin: Template = {
           W('spacer', { height: 48 }),
           W('icon', { name: 'email', size: 44, color: '#0F7F64', _align: 'center' }),
           W('heading', { text: `Welcome to ${name}`, size: 26, weight: '800', align: 'center' }),
-          W('text', { text: 'Enter your email. We will send you a 6-digit code — no password needed.', align: 'center' }),
+          W('text', { text: 'Enter your email. We will send you a code — no password needed.', align: 'center' }),
           W('input', { label: 'Email', hint: 'you@example.com', keyboard: 'email', field: 'email' }),
           W('button', { label: 'Send code', tap: 'sendCode', via: 'email', after: verify }),
         ],
@@ -256,8 +256,8 @@ const otpLogin: Template = {
       {
         id: verify, name: 'Enter code', title: 'Enter code', showAppBar: true, background: '#FFFFFF', requiresLogin: false,
         nodes: [
-          W('text', { text: 'Type the 6-digit code from your email. It expires in an hour.' }),
-          W('input', { label: 'Code', hint: '123456', keyboard: 'number', field: 'code' }),
+          W('text', { text: 'Type the code from your email. It expires in an hour.' }),
+          W('input', { label: 'Code', hint: '12345678', keyboard: 'number', field: 'code' }),
           W('button', { label: 'Verify and sign in', tap: 'verifyCode', via: 'email', after: home }),
           W('button', { label: 'Send a new code', tap: 'sendCode', via: 'email', bg: '#FFFFFF', fg: '#0F7F64' }),
         ],

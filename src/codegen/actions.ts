@@ -187,7 +187,7 @@ export function previewTap(p: Props): { page?: string; toast?: string; back?: bo
     case 'save':
       return { toast: s(p.message) || 'Saves the form (works in the exported app).', page: s(p.after) || undefined };
     case 'sendCode':
-      return { toast: s(p.via) === 'phone' ? 'Sends a 6-digit code by SMS (works in the exported app).' : 'Sends a 6-digit code by email (works in the exported app).', page: s(p.after) || undefined };
+      return { toast: s(p.via) === 'phone' ? 'Sends a 6-digit code by SMS (works in the exported app).' : 'Sends a one-time code by email (works in the exported app).', page: s(p.after) || undefined };
     case 'verifyCode':
       return { toast: 'Checks the code and signs the user in (works in the exported app).', page: s(p.after) || undefined };
     default:
