@@ -3,7 +3,7 @@ import { iconDef } from '@/core/icons';
 import { walkNodes } from '@/core/tree';
 import type { AppDoc, GeneratedFile, PageDoc, WidgetNode } from '@/core/types';
 import { FORM_HELPER_TYPES } from '@/widgets/controls';
-import { needsLauncher, tapKind, usesBackend } from './actions';
+import { needsLauncher, TAP_WIDGETS, tapKind, usesBackend } from './actions';
 import { hasBinding, makeRenderer, navPages } from './common';
 import { backendFiles, backendPackages } from './flutterBackend';
 import { flutterWorkflow } from './workflow';
@@ -23,7 +23,7 @@ export function generateFlutter(doc: AppDoc): GeneratedFile[] {
   const files: GeneratedFile[] = [];
   const tabs = navPages(doc);
   const tabIndex = new Map(tabs.map((t, i) => [t.pageId, i]));
-  const isTap = (nd: WidgetNode) => nd.type === 'button' || nd.type === 'iconbutton';
+  const isTap = (nd: WidgetNode) => TAP_WIDGETS.has(nd.type);
   const pageUses = (page: PageDoc) => {
     const u = { launcher: false, forms: false, inputs: false, actions: false, backend: false, api: false, dataList: false };
     walkNodes(page.nodes, (nd) => {

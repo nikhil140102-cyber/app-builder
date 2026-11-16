@@ -129,24 +129,40 @@ export const chip: WidgetDefinition = {
   label: 'Chip',
   category: 'Basic',
   icon: '<rect x="4" y="8" width="16" height="8" rx="4"/>',
-  defaultProps: { text: 'New', bg: '#FDE7D3', fg: '#9A4A10' },
+  defaultProps: { text: 'New', bg: '#FDE7D3', fg: '#9A4A10', ...TAP_DEFAULTS },
   fields: [
     { key: 'text', label: 'Text', kind: 'text' },
     { key: 'bg', label: 'Background', kind: 'color', group: 'Style' },
     { key: 'fg', label: 'Text colour', kind: 'color', group: 'Style' },
+    ...TAP_FIELDS,
   ],
-  Render: ({ props: p }) => (
-    <span className="x-chip" style={{ background: hex(p.bg), color: hex(p.fg) }}>
-      {s(p.text)}
-    </span>
-  ),
+  Render: ({ props: p, mode, runTap }) => {
+    const tappable = tapKind(p) !== 'none';
+    return (
+      <span
+        className="x-chip"
+        role={mode === 'preview' && tappable ? 'button' : undefined}
+        style={{ background: hex(p.bg), color: hex(p.fg), cursor: mode === 'preview' && tappable ? 'pointer' : undefined }}
+        onClick={() => {
+          if (mode === 'preview' && tappable) runTap(p);
+        }}
+      >
+        {s(p.text)}
+      </span>
+    );
+  },
+  // A chip with "When tapped" set becomes a tappable ActionChip (filters, shortcuts).
   toFlutter: ({ props: p }, ctx) =>
-    `Chip(label: Text(${ctx.dartText(p.text)}, style: TextStyle(color: ${dC(p.fg)})), backgroundColor: ${dC(p.bg)}, side: BorderSide.none)`,
+    tapKind(p) === 'none'
+      ? `Chip(label: Text(${ctx.dartText(p.text)}, style: TextStyle(color: ${dC(p.fg)})), backgroundColor: ${dC(p.bg)}, side: BorderSide.none)`
+      : `ActionChip(onPressed: ${flutterOnTap(p, ctx)}, label: Text(${ctx.dartText(p.text)}, style: TextStyle(color: ${dC(p.fg)})), backgroundColor: ${dC(p.bg)}, side: BorderSide.none)`,
   toReactNative: ({ props: p }, ctx) => {
     const I = ' '.repeat(ctx.indent);
-    return `<View style={{ backgroundColor: '${hex(p.bg)}', borderRadius: 999, paddingVertical: 5, paddingHorizontal: 11, alignSelf: 'flex-start' }}>
+    const tag = tapKind(p) === 'none' ? 'View' : 'Pressable';
+    const press = tapKind(p) === 'none' ? '' : ` onPress={${rnOnTap(p, ctx)}}`;
+    return `<${tag}${press} style={{ backgroundColor: '${hex(p.bg)}', borderRadius: 999, paddingVertical: 5, paddingHorizontal: 11, alignSelf: 'flex-start' }}>
 ${I}  <Text style={{ color: '${hex(p.fg)}', fontSize: 12, fontWeight: '600' }}>{${J(p.text)}}</Text>
-${I}</View>`;
+${I}</${tag}>`;
   },
 };
 

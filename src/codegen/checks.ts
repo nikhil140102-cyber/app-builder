@@ -1,7 +1,7 @@
 import { getWidget } from '@/core/registry';
 import { walkNodes } from '@/core/tree';
 import type { AppDoc } from '@/core/types';
-import { tapKind, usesBackend } from './actions';
+import { TAP_WIDGETS, tapKind, usesBackend } from './actions';
 import { fieldKey } from './helpers';
 import { ORG_PATTERN, pascal } from './helpers';
 
@@ -66,7 +66,7 @@ export function checkProject(doc: AppDoc): Check[] {
     });
     walkNodes(page.nodes, (n) => {
       const t = tapKind(n.props);
-      if ((n.type === 'button' || n.type === 'iconbutton') && usesBackend(n.props)) {
+      if (TAP_WIDGETS.has(n.type) && usesBackend(n.props)) {
         usesData = true;
         if (!(t === 'save' && String(n.props.saveTo) === 'api')) needsBackend = true;
         if ((t === 'signIn' || t === 'signUp') && !(keys.has('email') && keys.has('password')))

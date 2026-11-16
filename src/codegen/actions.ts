@@ -10,6 +10,8 @@ export type TapKind = 'none' | 'page' | 'back' | 'link' | 'call' | 'whatsapp' | 
 /** Taps that use the app's backend and the form values on the page. */
 const BACKEND_TAPS: TapKind[] = ['signIn', 'signUp', 'signOut', 'save', 'sendCode', 'verifyCode'];
 const OTP_TAPS: TapKind[] = ['sendCode', 'verifyCode'];
+/** Widgets that have a "When tapped" action. */
+export const TAP_WIDGETS = new Set(['button', 'iconbutton', 'chip']);
 export const usesBackend = (p: Props) => BACKEND_TAPS.includes(tapKind(p));
 
 export function tapKind(p: Props): TapKind {

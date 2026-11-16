@@ -280,12 +280,13 @@ const otpLogin: Template = {
 const foodDelivery: Template = {
   id: 'food',
   name: 'Food delivery',
-  description: 'Zomato-style: dishes from a live demo API, dish page, checkout and order placed (7 pages).',
+  description: 'Zomato-style: dishes from a live demo API, tappable filters, dish page, checkout and order placed (9 pages).',
   build: (name) => {
     const home = newId('p'), veg = newId('p'), explore = newId('p'), profile = newId('p');
-    const dish = newId('p'), checkout = newId('p'), placed = newId('p');
+    const dish = newId('p'), checkout = newId('p'), placed = newId('p'), quick = newId('p'), sweets = newId('p');
     const RED = '#E23744';
     const apiChicken = newId('api'), apiVeg = newId('api'), apiCats = newId('api'), apiOrders = newId('api');
+    const apiQuick = newId('api'), apiSweets = newId('api');
     const MEALS = 'https://www.themealdb.com/api/json/v1/1';
 
     /** One dish card, repeated for every row of a Data list. Tapping it opens the dish page with that dish. */
@@ -313,10 +314,11 @@ const foodDelivery: Template = {
               W('iconbutton', { name: 'person', bg: '#F4F4F4', color: '#1B1B1B', label: 'Profile', tap: 'page', action: profile }),
             ]),
             W('input', { label: 'Search', hint: 'Search “biryani”, “pizza”…', field: 'search' }),
+            // Tappable chips: each opens a page with its own dish list.
             W('row', { justify: 'start', gap: 6 }, [
-              W('chip', { text: 'Pure veg', bg: '#E8F5EC', fg: '#24963F' }),
-              W('chip', { text: 'Under 30 min', bg: '#F4F4F4', fg: '#1B1B1B' }),
-              W('chip', { text: 'Rating 4.0+', bg: '#F4F4F4', fg: '#1B1B1B' }),
+              W('chip', { text: 'Pure veg', bg: '#E8F5EC', fg: '#24963F', tap: 'page', action: veg }),
+              W('chip', { text: 'Quick bites', bg: '#F4F4F4', fg: '#1B1B1B', tap: 'page', action: quick }),
+              W('chip', { text: 'Desserts', bg: '#F4F4F4', fg: '#1B1B1B', tap: 'page', action: sweets }),
             ]),
             W('card', { bg: '#FFF1F2', radius: 18 }, [
               W('heading', { text: '50% OFF up to ₹100', size: 20, weight: '800', color: RED }),
@@ -331,6 +333,20 @@ const foodDelivery: Template = {
           nodes: [
             W('text', { text: '100% vegetarian kitchens near you.', color: '#24963F' }),
             W('datalist', { source: 'api', api: apiVeg, limit: 12, empty: 'No veg dishes right now.' }, [dishCard('Pure veg')]),
+          ],
+        },
+        {
+          id: quick, name: 'Quick bites', title: 'Quick bites', showAppBar: true, background: '#FFFFFF', requiresLogin: false,
+          nodes: [
+            W('text', { text: 'Starters and light meals, ready fast.', color: '#6B6B6B' }),
+            W('datalist', { source: 'api', api: apiQuick, limit: 12, empty: 'No quick bites right now.' }, [dishCard('Starter')]),
+          ],
+        },
+        {
+          id: sweets, name: 'Desserts', title: 'Desserts', showAppBar: true, background: '#FFFFFF', requiresLogin: false,
+          nodes: [
+            W('text', { text: 'Something sweet to finish.', color: '#6B6B6B' }),
+            W('datalist', { source: 'api', api: apiSweets, limit: 12, empty: 'No desserts right now.' }, [dishCard('Dessert')]),
           ],
         },
         {
@@ -410,6 +426,8 @@ const foodDelivery: Template = {
     doc.apis = [
       { id: apiChicken, name: 'Top dishes (TheMealDB)', url: `${MEALS}/filter.php?c=Chicken`, listPath: 'meals' },
       { id: apiVeg, name: 'Veg dishes (TheMealDB)', url: `${MEALS}/filter.php?c=Vegetarian`, listPath: 'meals' },
+      { id: apiQuick, name: 'Quick bites (TheMealDB)', url: `${MEALS}/filter.php?c=Starter`, listPath: 'meals' },
+      { id: apiSweets, name: 'Desserts (TheMealDB)', url: `${MEALS}/filter.php?c=Dessert`, listPath: 'meals' },
       { id: apiCats, name: 'Cuisines (TheMealDB)', url: `${MEALS}/categories.php`, listPath: 'categories' },
       { id: apiOrders, name: 'Orders (demo — replace with your own)', url: 'https://jsonplaceholder.typicode.com/posts', listPath: '' },
     ];
