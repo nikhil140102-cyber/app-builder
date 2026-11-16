@@ -249,7 +249,7 @@ export function CloudBuild({ doc, files }: { doc: AppDoc; files: GeneratedFile[]
 
       {error && <p className="error" role="alert">{error}</p>}
       {step === 'failed' && run && (
-        <p className="error">The build failed. Open the log above, scroll to the red step, and send it for help. Common causes are in docs/CLOUD_BUILDS.md.</p>
+        <p className="error">The build failed. Open the build log link above: the Summary page shows the error in a box under “The build failed”. Copy that box and send it for help. Common causes are in docs/CLOUD_BUILDS.md.</p>
       )}
       {note && <p className="note">{note}</p>}
 
