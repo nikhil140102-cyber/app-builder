@@ -1,0 +1,24 @@
+APP BUILDER - START HERE
+========================
+
+1. Install Node.js 20 or newer (LTS) from https://nodejs.org
+
+2. Put this folder in a simple local place, for example:
+      C:\projects\app-builder
+   NOT inside OneDrive, and not in a synced Desktop or Documents folder.
+
+3. Start the builder:
+      Windows:      double-click  start-windows.bat
+      Mac / Linux:  open Terminal here and run  ./start-mac-linux.sh
+
+   The first start takes a few minutes. Your browser then opens
+   http://localhost:3000 . Keep the black window open while you work.
+
+4. In the builder, click "Help" for the full guide:
+   designing, exporting, running the app on a phone, and fixes.
+
+Guides in this folder:
+   docs/GETTING_STARTED.md   - using the builder
+   docs/RUN_YOUR_APP.md      - running exported Flutter / React Native apps
+   docs/TROUBLESHOOTING.md   - every common error and its fix
+   docs/DEVELOPERS.md        - code structure, adding widgets, databases, deploying

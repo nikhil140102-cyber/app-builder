@@ -1,0 +1,288 @@
+import { brand } from '@/config/brand';
+import { iconDef } from '@/core/icons';
+import type { AppDoc, GeneratedFile } from '@/core/types';
+import { makeRenderer, navPages } from './common';
+import { rnGuide, rnReadme } from './guides';
+import { cleanOrg, hex, jsString, slug, snake } from './helpers';
+
+const crlf = (s: string) => s.replace(/\r?\n/g, '\r\n');
+
+export function rnFolderName(doc: AppDoc) {
+  return slug(doc.name) || 'my-app';
+}
+
+/** Packages are installed with "npx expo install" so their versions always match the Expo SDK. */
+const NATIVE_PACKAGES = [
+  'react',
+  'react-native',
+  'react-native-screens',
+  'react-native-safe-area-context',
+  '@react-navigation/native',
+  '@react-navigation/native-stack',
+  '@react-navigation/bottom-tabs',
+  '@expo/vector-icons',
+];
+
+export function generateReactNative(doc: AppDoc): GeneratedFile[] {
+  const { names, renderList } = makeRenderer(doc, 'reactNative');
+  const dir = rnFolderName(doc);
+  const appId = `${cleanOrg(doc.org ?? '')}.${snake(doc.name).replace(/_/g, '') || 'myapp'}`;
+  const installCmd = `npx expo install ${NATIVE_PACKAGES.join(' ')}`;
+  const files: GeneratedFile[] = [];
+
+  /* ---------- project files ---------- */
+
+  files.push({
+    path: 'package.json',
+    keepIfExists: true,
+    content:
+      JSON.stringify(
+        {
+          name: dir,
+          version: '1.0.0',
+          private: true,
+          main: 'index.js',
+          scripts: {
+            setup: `npm install && ${installCmd}`,
+            start: 'expo start',
+            android: 'expo start --android',
+            ios: 'expo start --ios',
+            web: 'expo start --web',
+          },
+          dependencies: { expo: '*' },
+        },
+        null,
+        2,
+      ) + '\n',
+  });
+
+  files.push({
+    path: 'app.json',
+    keepIfExists: true,
+    content:
+      JSON.stringify(
+        {
+          expo: {
+            name: doc.name,
+            slug: dir,
+            version: '1.0.0',
+            orientation: 'portrait',
+            userInterfaceStyle: 'light',
+            android: { package: appId },
+            ios: { bundleIdentifier: appId, supportsTablet: true },
+          },
+        },
+        null,
+        2,
+      ) + '\n',
+  });
+
+  files.push({
+    path: 'index.js',
+    content: `import { registerRootComponent } from 'expo';
+import App from './App';
+
+registerRootComponent(App);
+`,
+  });
+
+  files.push({ path: '.gitignore', keepIfExists: true, content: 'node_modules/\n.expo/\ndist/\nweb-build/\n*.log\n' });
+
+  /* ---------- screens ---------- */
+
+  for (const page of doc.pages) {
+    const nm = names.get(page.id)!;
+    files.push({
+      path: `screens/${nm.component}.js`,
+      content: `import * as React from 'react';
+import { ScrollView, View, Text, Pressable, Image, TextInput, Linking, Alert } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import { AbCheckbox, AbSwitch, AbDropdown } from '../components/FormControls';
+
+export default function ${nm.component}({ navigation }) {
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: '${hex(page.background, '#FFFFFF')}' }} contentContainerStyle={{ padding: 16, gap: 12 }}>
+${renderList(page.nodes, 6)}
+    </ScrollView>
+  );
+}
+`,
+    });
+  }
+
+  const tabs = navPages(doc);
+  const tabIds = new Set(tabs.map((t) => t.pageId));
+  const imports = doc.pages.map((p) => `import ${names.get(p.id)!.component} from './screens/${names.get(p.id)!.component}';`).join('\n');
+  const screenOptions = (p: AppDoc['pages'][number]) =>
+    `title: ${jsString(p.title || p.name)}, headerShown: ${p.showAppBar}, headerStyle: { backgroundColor: '${hex(p.background, '#FFFFFF')}' }`;
+  const stackPages = doc.pages.filter((p) => !tabIds.has(p.id));
+  const stackScreens = stackPages
+    .map((p) => {
+      const nm = names.get(p.id)!;
+      return `        <Stack.Screen name=${jsString(nm.screen)} component={${nm.component}} options={{ ${screenOptions(p)} }} />`;
+    })
+    .join('\n');
+  const startId = doc.pages[0].id;
+  const initialRoute = tabIds.has(startId) ? 'AppTabs' : names.get(startId)!.screen;
+
+  const tabsCode = tabs.length
+    ? `
+const Tab = createBottomTabNavigator();
+
+function AppTabs() {
+  return (
+    <Tab.Navigator initialRouteName=${jsString(tabIds.has(startId) ? names.get(startId)!.screen : names.get(tabs[0].pageId)!.screen)} screenOptions={{ tabBarActiveTintColor: '${hex(doc.theme.primary)}' }}>
+${tabs
+  .map((t) => {
+    const p = doc.pages.find((x) => x.id === t.pageId)!;
+    const nm = names.get(t.pageId)!;
+    return `      <Tab.Screen name=${jsString(nm.screen)} component={${nm.component}} options={{ ${screenOptions(p)}, tabBarLabel: ${jsString(t.label || 'Tab')}, tabBarIcon: ({ color, size }) => <MaterialIcons name=${jsString(iconDef(t.icon).rn)} color={color} size={size} /> }} />`;
+  })
+  .join('\n')}
+    </Tab.Navigator>
+  );
+}
+`
+    : '';
+
+  files.push({
+    path: 'App.js',
+    content: `// ${doc.name} — generated by ${brand.name}
+import * as React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+${tabs.length ? "import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';\nimport { MaterialIcons } from '@expo/vector-icons';\n" : ''}${imports}
+
+const Stack = createNativeStackNavigator();
+${tabsCode}
+export default function App() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName=${jsString(initialRoute)}>
+${tabs.length ? "        <Stack.Screen name=\"AppTabs\" component={AppTabs} options={{ headerShown: false }} />\n" : ''}${stackScreens}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+`,
+  });
+
+  files.push({
+    path: 'components/FormControls.js',
+    content: `// Form controls used by the generated screens. They remember their own value.
+import * as React from 'react';
+import { View, Text, Pressable, Switch } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+
+export function AbCheckbox({ label, initial = false }) {
+  const [on, setOn] = React.useState(initial);
+  return (
+    <Pressable onPress={() => setOn(!on)} accessibilityRole="checkbox" accessibilityState={{ checked: on }} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 }}>
+      <MaterialIcons name={on ? 'check-box' : 'check-box-outline-blank'} size={24} color="${hex(doc.theme.primary)}" />
+      <Text style={{ fontSize: 15, flexShrink: 1 }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+export function AbSwitch({ label, initial = false }) {
+  const [on, setOn] = React.useState(initial);
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, gap: 12 }}>
+      <Text style={{ fontSize: 15, flexShrink: 1 }}>{label}</Text>
+      <Switch value={on} onValueChange={setOn} />
+    </View>
+  );
+}
+
+export function AbDropdown({ label, options = [] }) {
+  const [value, setValue] = React.useState(options[0]);
+  const [open, setOpen] = React.useState(false);
+  return (
+    <View style={{ gap: 6 }}>
+      <Text style={{ fontSize: 13, color: '#5A5A5A' }}>{label}</Text>
+      <Pressable onPress={() => setOpen(!open)} style={{ borderWidth: 1, borderColor: '#CFCFCF', borderRadius: 10, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text>{value}</Text>
+        <MaterialIcons name={open ? 'expand-less' : 'expand-more'} size={20} color="#5A5A5A" />
+      </Pressable>
+      {open && (
+        <View style={{ borderWidth: 1, borderColor: '#CFCFCF', borderRadius: 10, overflow: 'hidden' }}>
+          {options.map((o) => (
+            <Pressable key={o} onPress={() => { setValue(o); setOpen(false); }} style={{ padding: 12, backgroundColor: o === value ? '#F0F0F0' : 'transparent' }}>
+              <Text style={{ fontWeight: o === value ? '600' : '400' }}>{o}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+`,
+  });
+
+  /* ---------- one-click scripts ---------- */
+
+  files.push({
+    path: 'run_windows.bat',
+    content: crlf(`@echo off
+setlocal
+cd /d "%~dp0"
+echo.
+echo  ===================================================
+echo   React Native (Expo) setup and run
+echo  ===================================================
+echo.
+
+where node >nul 2>nul
+if errorlevel 1 goto :nonode
+
+echo %CD% | find /I "OneDrive" >nul
+if not errorlevel 1 echo  [!] This folder is inside OneDrive. If installing fails, move it to C:\\projects\\apps and run again.
+
+if exist "node_modules\\" goto :start
+echo  [1/2] Installing packages. The first time takes a few minutes...
+call npm install
+if errorlevel 1 goto :failed
+call ${installCmd}
+if errorlevel 1 goto :failed
+
+:start
+echo  [2/2] Starting. Scan the QR code with Expo Go, or press a for an Android emulator.
+echo.
+call npx expo start
+goto :end
+
+:nonode
+echo  [X] Node.js was not found. Install it from nodejs.org, then run this file again.
+goto :end
+
+:failed
+echo.
+echo  [X] Setup stopped because of the error above. See HOW_TO_RUN.md, "Problems and fixes".
+
+:end
+echo.
+pause
+`),
+  });
+
+  files.push({
+    path: 'run_mac_linux.sh',
+    executable: true,
+    content: `#!/usr/bin/env bash
+# Installs packages (first time) and starts the Expo dev server.
+cd "$(dirname "$0")" || exit 1
+command -v node >/dev/null 2>&1 || { echo "  [X] Node.js was not found. Install it from nodejs.org."; exit 1; }
+if [ ! -d node_modules ]; then
+  echo "  [1/2] Installing packages. The first time takes a few minutes..."
+  npm install && ${installCmd} || { echo "  [X] Setup stopped. See HOW_TO_RUN.md."; exit 1; }
+fi
+echo "  [2/2] Starting. Scan the QR code with Expo Go, or press a for an Android emulator."
+npx expo start
+`,
+  });
+
+  files.push({ path: 'README.md', content: rnReadme(doc) });
+  files.push({ path: 'HOW_TO_RUN.md', content: rnGuide(doc, dir, installCmd) });
+
+  return files;
+}
